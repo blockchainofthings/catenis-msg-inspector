@@ -1,0 +1,23 @@
+{
+  "name": "catenis-msg-transaction",
+  "version": "1.0.0",
+  "description": "Module used to parse Catenis message blockchain transactions",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "Catenis",
+    "message"
+  ],
+  "author": "Cláudio de Castro",
+  "license": "MIT",
+  "engines": {
+    "node": "^8.0"
+  },
+  "dependencies": {
+    "bitcoinjs-lib": "^5.1.7",
+    "catenis-off-chain-lib": "git+https://bitbucket.org/blockchainofthings/catenis-off-chain-lib.git#semver:^1.0.0",
+    "cids": "^0.8.0"
+  }
+}
