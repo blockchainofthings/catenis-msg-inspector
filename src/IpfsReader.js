@@ -4,9 +4,10 @@
 
 const http = require('http');
 const https = require('https');
-const CID = require('cids');
+const url = require('url');
+const Util = require('./Util');
 
-const defaultIpfsGatewayUrl = 'https://ipfs.catenis.io'
+const defaultIpfsGatewayUrl = 'https://ipfs.catenis.io';
 const validProtocols = [
     'http:',
     'https:'
@@ -39,7 +40,13 @@ class IpfsReader {
             throw new TypeError('Invalid IPFS Gateway URL');
         }
 
-        this.reqOptions = reqOptions || {};
+        this.reqOptions = Object.assign(Util.urlToOptions(this.gatewayUrl), reqOptions || {});
+
+        if (this.reqOptions.timeout) {
+            // Timeout set. Make sure that it is properly set for
+            //  the browser implementation of http request
+            this.reqOptions.requestTimeout = this.reqOptions.timeout;
+        }
 
         this.http = this.gatewayUrl.protocol === 'https:' ? https : http;
     }
@@ -68,16 +75,17 @@ class IpfsReader {
         }
 
         // Do processing now
-        try {
-            dataCid = new CID(dataCid);
-        }
-        catch (err) {
+        dataCid = Util.validateCid(dataCid);
+
+        if (!dataCid) {
             process.nextTick(() => callback(TypeError('Invalid data IPFS CID')));
             return result;
         }
 
         // Retrieve data from IPFS
-        this.http.get(this.gatewayUrl + 'ipfs/' + dataCid.toString(), this.reqOptions, (res) => {
+        let reqTimedOut = false;
+
+        const req = this.http.get(Object.assign(this.reqOptions, {path: url.resolve(this.reqOptions.path, 'ipfs/' + dataCid.toString())}), (res) => {
             const dataChunks = [];
 
             res.on('readable', () => {
@@ -104,8 +112,36 @@ class IpfsReader {
             res.on('error', (error) => {
                 callback(error);
             })
-        }).on('error', (error) => {
+        })
+        .on('error', (error) => {
+            if (reqTimedOut) {
+                // Error event should have been triggered by request timeout
+                //  so replace it with a local error
+                if (!(error instanceof Error && ((error.name === 'Error' && error.message === 'socket hang up')
+                    || (error.name === 'AbortError' && error.message === 'Fetch is aborted')))) {
+                    console.debug('Unexpected error after request timeout:', error);
+                }
+
+                error = new Error('Request timed out');
+            }
+
             callback(error);
+        })
+        .on('timeout', () => {
+            // Data request timed out (on Node.js). Abort request
+            //  (and an error will be automatically thrown)
+            reqTimedOut = true;
+            req.abort();
+        })
+        .on('requestTimeout', () => {
+            // Data request timed out (on the browser). No need to abort it
+            reqTimedOut = true;
+
+            if (req._mode !== 'fetch') {
+                // If not in fetch mode (but rather using XMLHttpRequest), return
+                //  error now because no error event is generated
+                callback(new Error('Request timed out'));
+            }
         });
 
         return result;

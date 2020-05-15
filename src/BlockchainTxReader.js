@@ -4,6 +4,7 @@
 
 const http = require('http');
 const https = require('https');
+const Util = require('./Util');
 
 const defaultNetwork = 'main';
 const defaultExplorerApiRootUrl = {
@@ -49,10 +50,16 @@ class BlockchainTxReader {
         }
 
         if (error || validProtocols.findIndex(p => p === this.explorerApiUrl.protocol) < 0) {
-            throw new TypeError('Invalid blockchain explorer URL');
+            throw new TypeError('Invalid blockchain explorer API URL');
         }
 
-        this.reqOptions = reqOptions || {};
+        this.reqOptions = Object.assign(Util.urlToOptions(this.explorerApiUrl), reqOptions || {});
+
+        if (this.reqOptions.timeout) {
+            // Timeout set. Make sure that it is properly set for
+            //  the browser implementation of http request
+            this.reqOptions.requestTimeout = this.reqOptions.timeout;
+        }
 
         this.http = this.explorerApiUrl.protocol === 'https:' ? https : http;
     }
@@ -87,7 +94,9 @@ class BlockchainTxReader {
         }
 
         // Retrieve data from IPFS
-        this.http.get(this.explorerApiUrl.toString().replace(':txid', txid), this.reqOptions, (res) => {
+        let reqTimedOut = false;
+
+        const req = this.http.get(Object.assign(this.reqOptions, {path: this.reqOptions.path.replace(':txid', txid)}), (res) => {
             const dataChunks = [];
 
             res.on('readable', () => {
@@ -103,7 +112,7 @@ class BlockchainTxReader {
 
                 if (res.statusCode >= 300) {
                     // Error
-                    callback(`[${res.statusCode}] ` + (dataRead.length > 0 ? dataRead.toString() : res.statusMessage));
+                    callback(new Error(`[${res.statusCode}] ` + (dataRead.length > 0 ? dataRead.toString() : res.statusMessage)));
                 }
                 else {
                     // Success
@@ -114,8 +123,36 @@ class BlockchainTxReader {
             res.on('error', (error) => {
                 callback(error);
             })
-        }).on('error', (error) => {
+        })
+        .on('error', (error) => {
+            if (reqTimedOut) {
+                // Error event should have been triggered by request timeout
+                //  so replace it with a local error
+                if (!(error instanceof Error && ((error.name === 'Error' && error.message === 'socket hang up')
+                        || (error.name === 'AbortError' && error.message === 'Fetch is aborted')))) {
+                    console.debug('Unexpected error after request timeout:', error);
+                }
+
+                error = new Error('Request timed out');
+            }
+
             callback(error);
+        })
+        .on('timeout', () => {
+            // Data request timed out (on Node.js). Abort request
+            //  (and an error will be automatically thrown)
+            reqTimedOut = true;
+            req.abort();
+        })
+        .on('requestTimeout', () => {
+            // Data request timed out (on the browser). No need to abort it
+            reqTimedOut = true;
+
+            if (req._mode !== 'fetch') {
+                // If not in fetch mode (but rather using XMLHttpRequest), return
+                //  error now because no error event is generated
+                callback(new Error('Request timed out'));
+            }
         });
 
         return result;

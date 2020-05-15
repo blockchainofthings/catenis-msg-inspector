@@ -2,6 +2,8 @@
  * Created by claudio on 2020-04-23
  */
 
+const Util = require('./Util');
+
 const prefix = 'CTN';
 const version = 0x00;
 const versionMask = 0xe0;
@@ -16,11 +18,23 @@ const optsMask = {
     encryption: 0x02
 };
 const validOptsMask = Object.values(optsMask).reduce((m, b) => m | b, 0x00);
-const storageProviderCode = {
-    ipfs: 0x01,
-    ipfs2: 0x02
+const storageProvider = {
+    ipfs: {
+        byteCode: 0x01,
+        name: "ipfs",
+        description: "IPFS - Interplanetary Filesystem",
+        version: 1,
+        validator: Util.validateCid
+    },
+    ipfs2: {
+        byteCode: 0x02,
+        name: "ipfs",
+        description: "IPFS - Interplanetary Filesystem",
+        version: 2,
+        validator: Util.validateCid
+    }
 };
-const offChainStorageProvider = storageProviderCode.ipfs2;
+const offChainStorageProvider = storageProvider.ipfs2;
 
 class TransactionData {
     /**
@@ -82,11 +96,17 @@ class TransactionData {
                 // Validate storage provider
                 const spCode = this.data.readUInt8(offset++);
 
-                if (Object.values(storageProviderCode).findIndex(c => c === spCode) < 0) {
+                this.storageProvider = Object.values(storageProvider).find(sp => sp.byteCode === spCode);
+
+                if (!this.storageProvider) {
                     throw new Error('Invalid storage provider code');
                 }
 
-                this.messageCid = this.data.slice(offset);
+                this.messageRef = this.storageProvider.validator(this.data.slice(offset));
+
+                if (!this.messageRef) {
+                    throw new Error('Invalid message reference');
+                }
             }
             else {
                 this.message = this.data.slice(offset);
@@ -96,11 +116,17 @@ class TransactionData {
             // Validate storage provider
             const spCode = this.data.readUInt8(offset++);
 
-            if (spCode !== offChainStorageProvider) {
+            if (spCode !== offChainStorageProvider.byteCode) {
                 throw new Error('Invalid storage provider code');
             }
 
-            this.batchDocCid = this.data.slice(offset);
+            this.storageProvider = offChainStorageProvider;
+
+            this.batchDocCid = this.storageProvider.validator(this.data.slice(offset));
+
+            if (!this.batchDocCid) {
+                throw new Error('Invalid off-chain batch document reference');
+            }
         }
     }
 }

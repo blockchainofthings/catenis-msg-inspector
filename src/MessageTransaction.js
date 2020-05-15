@@ -150,7 +150,7 @@ class MessageTransaction {
                 this.message = this.txData.message;
             }
             else {
-                this.messageCid = this.txData.messageCid;
+                this.messageRef = this.txData.messageRef;
             }
         }
         else {
@@ -384,7 +384,7 @@ class MessageTransaction {
             this.msgOptions.readConfirmation = this.offChainMsgEnvelope.isMessageWithReadConfirmation;
         }
 
-        this.messageCid = this.offChainMsgEnvelope.msgRef;
+        this.messageRef = this.offChainMsgEnvelope.msgRef;
     }
 
     /**
@@ -395,7 +395,7 @@ class MessageTransaction {
     async _retrieveExternalMessage() {
         // Retrieve external message
         try {
-            this.message = await this.ipfsReader.getData(this.messageCid);
+            this.message = await this.ipfsReader.getData(this.messageRef);
         }
         catch (err) {
             throw new Error('Error retrieving external message: ' + err.message);
