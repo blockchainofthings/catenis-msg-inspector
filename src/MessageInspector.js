@@ -92,7 +92,7 @@ const msgType = {
     }
 }
 
-class MessageTransaction {
+class MessageInspector {
     /**
      * Class constructor
      * @param {String} hexTx Hex-encoded serialized blockchain transaction
@@ -135,15 +135,15 @@ class MessageTransaction {
             throw new Error('Invalid Catenis message transaction: inconsistent function byte');
         }
 
-        if (this.type !== msgTxType.settleOffChainMessages) {
-            this.msgType = this.type === msgTxType.logMessage ? msgType.logStandardMessage
+        if (this.txType !== msgTxType.settleOffChainMessages) {
+            this.msgType = this.txType === msgTxType.logMessage ? msgType.logStandardMessage
                 : msgType.sendStandardMessage;
             this.msgOptions = this.txData.options;
             this.originDevice = this._getOriginDeviceTxInputInfo();
 
-            if (this.type === msgTxType.sendMessage) {
+            if (this.txType === msgTxType.sendMessage) {
                 this.targetDevice = this._getTargetDeviceTxOutputInfo();
-                this.msgOptions.readConfirmation = this.type.readConfirmOutputRegEx.test(this.ioFingerprint.output);
+                this.msgOptions.readConfirmation = this.txType.readConfirmOutputRegEx.test(this.ioFingerprint.output);
             }
 
             if (this.msgOptions.embedding) {
@@ -205,10 +205,10 @@ class MessageTransaction {
     _classifyTransaction() {
         this._genTxIOFingerprint();
 
-        this.type = Object.values(msgTxType).filter(txType => txType.inputRegEx.test(this.ioFingerprint.input)
+        this.txType = Object.values(msgTxType).filter(txType => txType.inputRegEx.test(this.ioFingerprint.input)
             && txType.outputRegEx.test(this.ioFingerprint.output));
 
-        if (this.type.length === 0) {
+        if (this.txType.length === 0) {
             throw new Error('Invalid Catenis message transaction');
         }
     }
@@ -220,9 +220,9 @@ class MessageTransaction {
      * @private
      */
     _confirmTransactionType() {
-        this.type = this.type.find(type => type.funcByte === this.txData.funcByte);
+        this.txType = this.txType.find(type => type.funcByte === this.txData.funcByte);
 
-        return !!this.type;
+        return !!this.txType;
     }
 
     /**
@@ -425,7 +425,7 @@ class MessageTransaction {
         }
 
         // Do processing now
-        if (this.type === msgTxType.settleOffChainMessages) {
+        if (this.txType === msgTxType.settleOffChainMessages) {
             this.offChainPromise
             .then(() => this._retrieveExternalMessage())
             .then(() => callback(null, this.message))
@@ -453,4 +453,4 @@ function isValidNetwork(network) {
     return typeof network === 'string' && networks.some(n => n === network);
 }
 
-module.exports = MessageTransaction;
+module.exports = MessageInspector;

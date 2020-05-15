@@ -3,14 +3,14 @@
  */
 
 const BlockchainTxReader = require('./BlockchainTxReader');
-const MessageTransaction = require('./MessageTransaction');
+const MessageInspector = require('./MessageInspector');
 const IpfsReader = require('./IpfsReader');
 const TransactionData = require('./TransactionData');
 const Util = require('./Util');
 
 const modulesToExport = {
     BlockchainTxReader,
-    MessageTransaction
+    MessageInspector
 }
 
 if (typeof window === 'object') {

@@ -12,8 +12,8 @@ module.exports = {
     },
     output: {
         path: path.resolve(__dirname, 'dist'),
-        filename: 'catenis-msg-transaction.js',
-        library: 'CatenisMsgTransaction',
+        filename: 'catenis-msg-inspector.js',
+        library: 'CatenisMsgInspector',
         libraryTarget: 'umd'
     }
 };

@@ -1,8 +1,8 @@
 {
-  "name": "catenis-msg-transaction",
+  "name": "catenis-msg-inspector",
   "version": "1.0.0",
   "description": "Module used to parse Catenis message blockchain transactions",
-  "main": "dist/catenis-msg-transaction.js",
+  "main": "dist/catenis-msg-inspector.js",
   "scripts": {
     "build": "webpack",
     "build-prod": "webpack --mode=production",
