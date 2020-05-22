@@ -85,7 +85,7 @@ class IpfsReader {
         // Retrieve data from IPFS
         let reqTimedOut = false;
 
-        const req = this.http.get(Object.assign(this.reqOptions, {path: url.resolve(this.reqOptions.path, 'ipfs/' + dataCid.toString())}), (res) => {
+        const req = this.http.get(Object.assign({}, this.reqOptions, {path: url.resolve(this.reqOptions.path, 'ipfs/' + dataCid.toString())}), (res) => {
             const dataChunks = [];
 
             res.on('readable', () => {
@@ -101,7 +101,7 @@ class IpfsReader {
 
                 if (res.statusCode >= 300) {
                     // Error
-                    callback(`[${res.statusCode}] ` + (dataRead.length > 0 ? dataRead.toString() : res.statusMessage));
+                    callback(new Error(`[${res.statusCode}] ` + (dataRead.length > 0 ? dataRead.toString() : res.statusMessage)));
                 }
                 else {
                     // Success

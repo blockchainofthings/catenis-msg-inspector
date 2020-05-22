@@ -4,8 +4,10 @@
 
 const bitcoinLib = require('bitcoinjs-lib');
 const ctnOffChainLib = require('catenis-off-chain-lib');
+const BlockchainTxReader = require('./BlockchainTxReader');
 const TransactionData = require('./TransactionData');
 const IpfsReader = require('./IpfsReader');
+const Util = require('./Util');
 
 const networks = [
     'main',
@@ -95,107 +97,188 @@ const msgType = {
 class MessageInspector {
     /**
      * Class constructor
-     * @param {String} hexTx Hex-encoded serialized blockchain transaction
-     * @param {String} [network] Blockchain network from where the transaction come. Valid values:
-     *                          'main' (the default) and 'testnet'
      * @param {Object} [options]
-     * @param {String} [options.offChainMsgEnvCid] IPFS CID, in string format, of off-chain message envelope.
-     *                  This is required to retrieve off-chain messages
-     * @param {String} [options.ipfsGatewayUrl] URL of IPFS gateway to use to retrieve data from IPFS
-     * @param {Object} [options.reqOptions] Options object to be used with (Node.js') http.request() function
+     * @param {String} [options.network] Bitcoin blockchain network to where Catenis message transactions
+     *                  are recorded. Valid values: 'main' (the default) and 'testnet'
+     * @param {Object} [options.reqOptions] Object with common options to be passed to (Node.js')
+     *                  http.request() function
+     * @param {Object} [options.blockExplorer]
+     * @param {Object} [options.blockExplorer.api]
+     * @param {String} options.blockExplorer.api.rootUrl Root URL of blockchain explorer API to use
+     * @param {String} options.blockExplorer.api.getRawTxHexEndpoint Endpoint of API service used for
+     *                  getting hex-encoded raw transactions. It is expected that the endpoint has the
+     *                  inline parameter ':txid'
+     * @param {Object} [options.blockExplorer.reqOptions] Object with options to be passed to (Node.js')
+     *                  http.request() function when accessing the blockchain explorer API
+     * @param {Object} [options.ipfsGateway]
+     * @param {String} [options.ipfsGateway.url] URL of IPFS gateway to use to retrieve data from IPFS
+     * @param {Object} [options.ipfsGateway.reqOptions] Object with options to be passed to (Node.js')
+     *                  http.request() function when retrieving data from IPFS
      */
-    constructor(hexTx, network, options) {
-        if (typeof network === 'object' && network !== null) {
-            options = network;
-            network = undefined;
-        }
-
-        this.network = isValidNetwork(network) ? network : defaultNetwork;
-        this.btcNetwork = this.network === 'main' ? bitcoinLib.networks.bitcoin : bitcoinLib.networks.testnet;
-        this.options = options || {};
-
-        try {
-            this.btcTransact = bitcoinLib.Transaction.fromHex(hexTx);
-        }
-        catch (err) {
-            throw new Error('Invalid hex transaction');
-        }
-
-        this._classifyTransaction();
-        
-        try {
-            this.txData = new TransactionData(this.embeddedData);
-            this.txData.parse();
-        }
-        catch (err) {
-            throw new Error('Invalid Catenis message transaction: ' + err.message);
-        }
-
-        if (!this._confirmTransactionType()) {
-            throw new Error('Invalid Catenis message transaction: inconsistent function byte');
-        }
-
-        if (this.txType !== msgTxType.settleOffChainMessages) {
-            this.msgType = this.txType === msgTxType.logMessage ? msgType.logStandardMessage
-                : msgType.sendStandardMessage;
-            this.msgOptions = this.txData.options;
-            this.originDevice = this._getOriginDeviceTxInputInfo();
-
-            if (this.txType === msgTxType.sendMessage) {
-                this.targetDevice = this._getTargetDeviceTxOutputInfo();
-                this.msgOptions.readConfirmation = this.txType.readConfirmOutputRegEx.test(this.ioFingerprint.output);
-            }
-
-            if (this.msgOptions.embedding) {
-                this.message = this.txData.message;
-            }
-            else {
-                this.messageRef = this.txData.messageRef;
-            }
+    constructor(options) {
+        if (!Util.isNonNullObject(options)) {
+            this._options = {
+                blockExplorer: {},
+                ipfsGateway: {}
+            };
         }
         else {
-            if (!this.options.offChainMsgEnvCid) {
-                throw new Error('Missing Catenis off-chain message envelope IPFS CID');
+            this._options = Object.assign({}, options);
+            
+            if (!Util.isNonNullObject(options.blockExplorer)) {
+                this._options.blockExplorer = {};
             }
 
-            (this.offChainPromise = Promise.race([
-                this._retrieveOffChainMsgEnvelope()
-            ]))
-            .catch(() => {});   // Required to avoid unhandled promise rejection warning
+            if (!Util.isNonNullObject(options.ipfsGateway)) {
+                this._options.ipfsGateway = {};
+            }
         }
+
+        if (!isValidNetwork(this._options.network)) {
+            this._options.network = defaultNetwork;
+        }
+
+        this._options.btcNetwork = this._options.network === 'main' ? bitcoinLib.networks.bitcoin : bitcoinLib.networks.testnet;
+        
+        if (!Util.isNonNullObject(this._options.reqOptions)) {
+            this._options.reqOptions = {};
+        }
+
+        this._options.blockExplorer.reqOptions = Object.assign(
+            this._options.reqOptions,
+            Util.isNonNullObject(this._options.blockExplorer.reqOptions) ? this._options.blockExplorer.reqOptions
+                : {}
+        );
+        this._options.ipfsGateway.reqOptions = Object.assign(
+            this._options.reqOptions,
+            Util.isNonNullObject(this._options.ipfsGateway.reqOptions) ? this._options.ipfsGateway.reqOptions
+                : {}
+        );
     }
 
     /**
      * Get nulldata output index
      * @returns {number} Index of transaction output that is of nulldata type
+     * @private
      */
-    get nullDataOutputIdx() {
-        return this.ioFingerprint.output.search(outputType.nullData.token);
+    get _nullDataOutputIdx() {
+        return this.txIOFingerprint.output.search(outputType.nullData.token);
     }
 
     /**
      * Get the raw data embedded in the transaction
      * @returns {Buffer} A buffer containing the data stored in the transaction's nulldata output
+     * @private
      */
-    get embeddedData() {
-        return Buffer.concat(bitcoinLib.payments.embed({output: this.btcTransact.outs[this.nullDataOutputIdx].script}, {validate: false}).data);
+    get _embeddedData() {
+        return Buffer.concat(bitcoinLib.payments.embed({output: this.btcTransact.outs[this._nullDataOutputIdx].script}, {validate: false}).data);
+    }
+
+    /**
+     * Get object used to retrieve blockchain transactions
+     * @returns {BlockchainTxReader} Instance of a blockchain transaction reader object
+     * @private
+     */
+    get _bcTxReader() {
+        if (!this.__bcTxReader) {
+            try {
+                this.__bcTxReader = new BlockchainTxReader(
+                    this._options.blockExplorer.api ? this._options.blockExplorer.api : this._options.network,
+                    this._options.blockExplorer.reqOptions
+                );
+            }
+            catch (err) {
+                throw new Error('Error setting up blockchain transaction reader: ' + err.message);
+            }
+        }
+
+        return this.__bcTxReader;
     }
 
     /**
      * Get object used to retrieve data from IPFS
      * @returns {IpfsReader} Instance of an IPFS reader object
+     * @private
      */
-    get ipfsReader() {
-        if (!this._ipfsReader) {
+    get _ipfsReader() {
+        if (!this.__ipfsReader) {
             try {
-                this._ipfsReader = new IpfsReader(this.options.ipfsGatewayUrl, this.options.reqOptions);
+                this.__ipfsReader = new IpfsReader(this._options.ipfsGateway.url, this._options.ipfsGateway.reqOptions);
             }
             catch (err) {
                 throw new Error('Error setting up IPFS reader: ' + err.message);
             }
         }
 
-        return this._ipfsReader;
+        return this.__ipfsReader;
+    }
+
+    /**
+     * Inspect a Catenis message
+     * @param {String} [txid] ID of the blockchain transaction that was used to record the Catenis
+     *                  message to be inspected. This is required when inspecting standard
+     *                  (non-off-chain) messages. For off-chain messages, this should be specified
+     *                  after the message has been settled to the blockchain
+     * @param {String} [offChainCid] IPFS CID, in string format, of the off-chain message envelope
+     *                  that holds the Catenis off-chain message to be inspected. This is required
+     *                  when inspecting off-chain messages
+     * @param {Function} [callback] Callback function
+     * @returns {Promise<Object>,undefined} If no callback is passed, a promise is returned
+     */
+    inspect(txid, offChainCid, callback) {
+        if (typeof offChainCid === 'function') {
+            callback = offChainCid;
+            offChainCid = undefined;
+        }
+
+        let result;
+
+        // Prepare promise to be returned if no callback passed
+        if (typeof callback !== 'function') {
+            result = new Promise((resolve, reject) => {
+                callback = (err, res) => {
+                    if (err) {
+                        reject(err);
+                    }
+                    else {
+                        resolve(res);
+                    }
+                }
+            });
+        }
+
+        // Do processing now
+        if (!txid && !offChainCid) {
+            process.nextTick(() => callback(new TypeError('Missing at least one of the parameters: \'txid\' or \'offChainCid\'')));
+        }
+
+        this._reset();
+
+        if (txid) {
+            this.txid = txid;
+        }
+
+        if (offChainCid) {
+            this.offChainCid = offChainCid;
+        }
+
+        this._doInspect()
+        .then(() => callback(null, this))
+        .catch(err => callback(err));
+
+        return result;
+    }
+
+    /**
+     * Clean up object preparing it to inspect a new message
+     * @private
+     */
+    _reset() {
+        Object.getOwnPropertyNames(this).forEach((prop) => {
+            if (!prop.startsWith('_')) {
+                delete this[prop];
+            }
+        });
     }
 
     /**
@@ -205,8 +288,8 @@ class MessageInspector {
     _classifyTransaction() {
         this._genTxIOFingerprint();
 
-        this.txType = Object.values(msgTxType).filter(txType => txType.inputRegEx.test(this.ioFingerprint.input)
-            && txType.outputRegEx.test(this.ioFingerprint.output));
+        this.txType = Object.values(msgTxType).filter(txType => txType.inputRegEx.test(this.txIOFingerprint.input)
+            && txType.outputRegEx.test(this.txIOFingerprint.output));
 
         if (this.txType.length === 0) {
             throw new Error('Invalid Catenis message transaction');
@@ -261,20 +344,25 @@ class MessageInspector {
             return ioTokens.join('');
         }
 
-        this.ioFingerprint = {
+        this.txIOFingerprint = {
             input: getFingerprint('input', this.btcTransact.ins, Object.values(inputType)),
             output: getFingerprint('output', this.btcTransact.outs, Object.values(outputType))
         };
     }
 
+    /**
+     * Get origin device transaction input info
+     * @returns {{address: *, pubKeyHash: *}}
+     * @private
+     */
     _getOriginDeviceTxInputInfo() {
-        const iType = Object.values(inputType).find(type => type.token === this.ioFingerprint.input[0]);
+        const iType = Object.values(inputType).find(type => type.token === this.txIOFingerprint.input[0]);
 
         if (iType && iType.payment) {
             try {
                 const input = this.btcTransact.ins[0];
                 const a = {
-                    network: this.btcNetwork
+                    network: this._options.btcNetwork
                 };
 
                 if (input.witness && input.witness.length > 0) {
@@ -297,14 +385,19 @@ class MessageInspector {
         }
     }
 
+    /**
+     * Get target device transaction output info
+     * @returns {{address: *, pubKeyHash: *}}
+     * @private
+     */
     _getTargetDeviceTxOutputInfo() {
-        const oType = Object.values(outputType).some(type => type.token === this.ioFingerprint.output[0]);
+        const oType = Object.values(outputType).find(type => type.token === this.txIOFingerprint.output[0]);
 
         if (oType && oType.payment) {
             try {
                 const payInfo = bitcoinLib.payments[oType.payment]({
                     output: this.btcTransact.outs[0].script,
-                    network: this.btcNetwork
+                    network: this._options.btcNetwork
                 });
 
                 return {
@@ -319,72 +412,161 @@ class MessageInspector {
     }
 
     /**
-     * Retrieve the off-chain message envelope that holds the Catenis off-chain message
-     *  associated with this Catenis message transaction from IPFS
+     * Execute internal procedures to inspect the Catenis message
      * @returns {Promise<void>}
      * @private
      */
-    async _retrieveOffChainMsgEnvelope() {
-        // Retrieve Catenis off-chain messages batch document
-        let batchDocData;
+    async _doInspect() {
+        let retrieveOffChainMsgData = false;
 
+        if (this.txid) {
+            await this._retrieveCatenisTransaction();
+
+            this._classifyTransaction();
+
+            try {
+                this.txData = new TransactionData(this._embeddedData);
+                this.txData.parse();
+            }
+            catch (err) {
+                throw new Error('Invalid Catenis message transaction: ' + err.message);
+            }
+
+            if (!this._confirmTransactionType()) {
+                throw new Error('Invalid Catenis message transaction: inconsistent function byte');
+            }
+
+            if (this.txType !== msgTxType.settleOffChainMessages) {
+                this.msgType = this.txType === msgTxType.logMessage ? msgType.logStandardMessage
+                    : msgType.sendStandardMessage;
+                this.msgOptions = this.txData.options;
+                this.originDevice = this._getOriginDeviceTxInputInfo();
+
+                if (this.txType === msgTxType.sendMessage) {
+                    this.targetDevice = this._getTargetDeviceTxOutputInfo();
+                    this.msgOptions.readConfirmation = this.txType.readConfirmOutputRegEx.test(this.txIOFingerprint.output);
+                }
+
+                if (this.msgOptions.embedding) {
+                    this.message = this.txData.message;
+                }
+                else {
+                    this.messageRef = this.txData.messageRef;
+                }
+            }
+            else {
+                // Settle off-chain messages transaction
+                retrieveOffChainMsgData = true;
+            }
+        }
+        else {
+            retrieveOffChainMsgData = true;
+        }
+
+        if (retrieveOffChainMsgData) {
+            await this._retrieveOffChainMsgData();
+        }
+
+        if (this.messageRef) {
+            await this._retrieveExternalMessage();
+        }
+    }
+
+    /**
+     * Retrieve the blockchain transaction that was used to record the Catenis
+     *  message that is being inspected
+     * @returns {Promise<void>}
+     * @private
+     */
+    async _retrieveCatenisTransaction() {
         try {
-            batchDocData = await this.ipfsReader.getData(this.txData.batchDocCid);
+            this.hexTx = await this._bcTxReader.getTransaction(this.txid);
         }
         catch (err) {
-            throw new Error('Error retrieving Catenis off-chain messages batch document: ' + err.message);
+            throw new Error('Error retrieving blockchain transaction: ' + err.message);
         }
-
-        // Parse batch document
-        try {
-            this.batchDoc = ctnOffChainLib.BatchDocument.fromBuffer(batchDocData);
-        }
-        catch (err) {
-            throw new Error('Error parsing Catenis off-chain messages batch document: ' + err.message);
-        }
-
-        // Make sure that supplied Catenis off-chain message envelope is recorded
-        //  in that batch document
-        if (!this.batchDoc.isMessageDataInBatch(this.options.offChainMsgEnvCid)) {
-            throw new Error('Invalid Catenis off-chain message envelope IPFS CID');
-        }
-
-        // Retrieve off-chain message envelope
-        let offChainMsgEnvData;
 
         try {
-            offChainMsgEnvData = await this.ipfsReader.getData(this.options.offChainMsgEnvCid);
+            this.btcTransact = bitcoinLib.Transaction.fromHex(this.hexTx);
         }
         catch (err) {
-            throw new Error('Error retrieving Catenis off-chain message envelope: ' + err.message);
+            throw new Error('Invalid hex transaction');
+        }
+    }
+
+    /**
+     * Retrieve from IPFS the off-chain message envelope that holds the Catenis
+     *  off-chain message that is being inspected
+     * @returns {Promise<void>}
+     * @private
+     */
+    async _retrieveOffChainMsgData() {
+        if (this.txData) {
+            // Retrieve Catenis off-chain messages batch document
+            let batchDocData;
+
+            try {
+                batchDocData = await this._ipfsReader.getData(this.txData.batchDocCid);
+            }
+            catch (err) {
+                throw new Error('Error retrieving Catenis off-chain messages batch document: ' + err.message);
+            }
+
+            // Parse batch document
+            try {
+                this.batchDoc = ctnOffChainLib.BatchDocument.fromBuffer(batchDocData);
+            }
+            catch (err) {
+                throw new Error('Error parsing Catenis off-chain messages batch document: ' + err.message);
+            }
         }
 
-        // Parse off-chain message envelope
-        try {
-            this.offChainMsgEnvelope = ctnOffChainLib.MessageEnvelope.fromBuffer(offChainMsgEnvData);
-        }
-        catch (err) {
-            throw new Error('Error parsing Catenis off-chain message envelope: ' + err.message);
-        }
+        if (this.offChainCid) {
+            if (this.batchDoc) {
+                // Make sure that supplied Catenis off-chain message envelope is recorded
+                //  in that batch document
+                if (!this.batchDoc.isMessageDataInBatch(this.offChainCid)) {
+                    throw new Error('Invalid Catenis off-chain message envelope IPFS CID');
+                }
+            }
 
-        // Get message info
-        this.msgType = this.offChainMsgEnvelope.msgType === ctnOffChainLib.MessageEnvelope.msgType.logMessage ? msgType.logOffChainMessage
-            : msgType.sendOffChainMessage;
-        this.msgOptions = {
-            encryption: this.offChainMsgEnvelope.isMessageEncrypted
-        };
-        this.originDevice = {
-            pubKeyHash: this.offChainMsgEnvelope.senderPubKeyHash
-        };
+            // Retrieve off-chain message envelope
+            let offChainMsgEnvData;
 
-        if (this.msgType === msgType.sendOffChainMessage) {
-            this.targetDevice = {
-                pubKeyHash: this.offChainMsgEnvelope.receiverPubKeyHash
+            try {
+                offChainMsgEnvData = await this._ipfsReader.getData(this.offChainCid);
+            }
+            catch (err) {
+                throw new Error('Error retrieving Catenis off-chain message envelope: ' + err.message);
+            }
+
+            // Parse off-chain message envelope
+            try {
+                this.offChainMsgEnvelope = ctnOffChainLib.MessageEnvelope.fromBuffer(offChainMsgEnvData);
+            }
+            catch (err) {
+                throw new Error('Error parsing Catenis off-chain message envelope: ' + err.message);
+            }
+
+            // Get message info
+            this.msgType = this.offChainMsgEnvelope.msgType === ctnOffChainLib.MessageEnvelope.msgType.logMessage ? msgType.logOffChainMessage
+                : msgType.sendOffChainMessage;
+            this.msgOptions = {
+                encryption: this.offChainMsgEnvelope.isMessageEncrypted
             };
-            this.msgOptions.readConfirmation = this.offChainMsgEnvelope.isMessageWithReadConfirmation;
-        }
+            this.originDevice = {
+                pubKeyHash: this.offChainMsgEnvelope.senderPubKeyHash
+            };
 
-        this.messageRef = this.offChainMsgEnvelope.msgRef;
+            if (this.msgType === msgType.sendOffChainMessage) {
+                this.targetDevice = {
+                    pubKeyHash: this.offChainMsgEnvelope.receiverPubKeyHash
+                };
+                this.msgOptions.readConfirmation = this.offChainMsgEnvelope.isMessageWithReadConfirmation;
+            }
+
+            this.messageRef = this.offChainMsgEnvelope.msgRef;
+        }
     }
 
     /**
@@ -395,52 +577,11 @@ class MessageInspector {
     async _retrieveExternalMessage() {
         // Retrieve external message
         try {
-            this.message = await this.ipfsReader.getData(this.messageRef);
+            this.message = await this._ipfsReader.getData(this.messageRef);
         }
         catch (err) {
             throw new Error('Error retrieving external message: ' + err.message);
         }
-    }
-
-    /**
-     * Returns the message conveyed by this Catenis message transaction
-     * @param {Function} [callback] Callback function
-     * @returns {Promise<Buffer>,undefined} If no callback is passed, a promise is returned
-     */
-    getMessage(callback) {
-        let result;
-
-        // Prepare promise to be returned if no callback passed
-        if (typeof callback !== 'function') {
-            result = new Promise((resolve, reject) => {
-                callback = (err, res) => {
-                    if (err) {
-                        reject(err);
-                    }
-                    else {
-                        resolve(res);
-                    }
-                }
-            });
-        }
-
-        // Do processing now
-        if (this.txType === msgTxType.settleOffChainMessages) {
-            this.offChainPromise
-            .then(() => this._retrieveExternalMessage())
-            .then(() => callback(null, this.message))
-            .catch(err => callback(err));
-        }
-        else if (!this.msgOptions.embedding) {
-            this._retrieveExternalMessage()
-            .then(() => callback(null, this.message))
-            .catch(err => callback(err));
-        }
-        else {
-            process.nextTick(() => callback(null, this.message));
-        }
-
-        return result;
     }
 }
 

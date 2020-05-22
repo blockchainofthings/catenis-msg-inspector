@@ -9,7 +9,6 @@ const TransactionData = require('./TransactionData');
 const Util = require('./Util');
 
 const modulesToExport = {
-    BlockchainTxReader,
     MessageInspector
 }
 
@@ -21,6 +20,7 @@ if (typeof window === 'object') {
 if (process.env.RUNNING_MOCHA || (typeof window === 'object' && window.RUNNING_MOCHA)) {
     // Running tests
     Object.assign(modulesToExport, {
+        BlockchainTxReader,
         IpfsReader,
         TransactionData,
         Util,

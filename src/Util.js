@@ -42,8 +42,13 @@ function validateCid(cid) {
     return validCid;
 }
 
+function isNonNullObject(obj) {
+    return typeof obj === 'object' && obj !== null;
+}
+
 
 module.exports = {
     urlToOptions,
-    validateCid
+    validateCid,
+    isNonNullObject
 }

@@ -96,7 +96,7 @@ class BlockchainTxReader {
         // Retrieve data from IPFS
         let reqTimedOut = false;
 
-        const req = this.http.get(Object.assign(this.reqOptions, {path: this.reqOptions.path.replace(':txid', txid)}), (res) => {
+        const req = this.http.get(Object.assign({}, this.reqOptions, {path: this.reqOptions.path.replace(':txid', txid)}), (res) => {
             const dataChunks = [];
 
             res.on('readable', () => {
