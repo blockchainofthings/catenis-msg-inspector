@@ -54,13 +54,22 @@
             });
 
             describe('Get transaction', function () {
+                this.timeout(5000);
+
                 it('should return error when passing an invalid tx ID', function (done) {
                     const bcReader = new ctnMsgInspector.BlockchainTxReader('testnet');
 
                     bcReader.getTransaction('', function (err, res) {
-                        expect(err).to.exist.and.be.an.instanceof(TypeError).and.have.property('message', 'Invalid transaction ID');
+                        let error;
 
-                        done();
+                        try {
+                            expect(err).to.exist.and.be.an.instanceof(TypeError).and.have.property('message', 'Invalid transaction ID');
+                        }
+                        catch(err) {
+                            error = err;
+                        }
+
+                        done(error);
                     });
                 });
 
@@ -68,9 +77,16 @@
                     const bcReader = new ctnMsgInspector.BlockchainTxReader('testnet');
 
                     bcReader.getTransaction('24e5b18a8d6d0f282fb08bad1f34c2ee66f0f6afc64b592b95bcd0d6c17becff', function (err, res) {
-                        expect(err).to.exist.and.be.an.instanceof(Error).and.have.property('message', '[404] Transaction not found');
+                        let error;
 
-                        done();
+                        try {
+                            expect(err).to.exist.and.be.an.instanceof(Error).and.have.property('message', '[404] Transaction not found');
+                        }
+                        catch(err) {
+                            error = err;
+                        }
+
+                        done(error);
                     });
                 });
 
@@ -81,9 +97,16 @@
                     });
 
                     bcReader.getTransaction('24e5b18a8d6d0f282fb08bad1f34c2ee66f0f6afc64b592b95bcd0d6c17bec77', function (err, res) {
-                        expect(err).to.exist.and.be.an.instanceof(Error);
+                        let error;
 
-                        done();
+                        try {
+                            expect(err).to.exist.and.be.an.instanceof(Error);
+                        }
+                        catch(err) {
+                            error = err;
+                        }
+
+                        done(error);
                     });
                 });
 
@@ -91,9 +114,16 @@
                     const bcReader = new ctnMsgInspector.BlockchainTxReader('testnet');
 
                     bcReader.getTransaction('24e5b18a8d6d0f282fb08bad1f34c2ee66f0f6afc64b592b95bcd0d6c17bec77', function (err, res) {
-                        expect(res).to.exist.and.be.a('string');
+                        let error;
 
-                        done();
+                        try {
+                            expect(res).to.exist.and.be.a('string');
+                        }
+                        catch(err) {
+                            error = err;
+                        }
+
+                        done(error);
                     });
                 });
 
@@ -103,9 +133,16 @@
                     // Note: we try to fetch an non-existent transaction to avoid an immediate
                     //  return due to browser caching
                     bcReader.getTransaction('24e5b18a8d6d0f282fb08bad1f34c2ee66f0f6afc64b592b95bcd0d6c17becff', function (err, res) {
-                        expect(err).to.exist.and.be.an.instanceof(Error).and.have.property('message', 'Request timed out');
+                        let error;
 
-                        done();
+                        try {
+                            expect(err).to.exist.and.be.an.instanceof(Error).and.have.property('message', 'Request timed out');
+                        }
+                        catch(err) {
+                            error = err;
+                        }
+
+                        done(error);
                     });
                 });
 
@@ -117,9 +154,16 @@
                         // Note: we try to fetch an non-existent transaction to avoid an immediate
                         //  return due to browser caching
                         bcReader.getTransaction('24e5b18a8d6d0f282fb08bad1f34c2ee66f0f6afc64b592b95bcd0d6c17becff', function (err, res) {
-                            expect(err).to.exist.and.be.an.instanceof(Error).and.have.property('message', 'Request timed out');
+                            let error;
 
-                            done();
+                            try {
+                                expect(err).to.exist.and.be.an.instanceof(Error).and.have.property('message', 'Request timed out');
+                            }
+                            catch(err) {
+                                error = err;
+                            }
+
+                            done(error);
                         });
                     });
                 }

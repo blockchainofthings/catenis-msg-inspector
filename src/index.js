@@ -2,30 +2,25 @@
  * Created by claudio on 2020-04-28
  */
 
-const BlockchainTxReader = require('./BlockchainTxReader');
-const MessageInspector = require('./MessageInspector');
-const IpfsReader = require('./IpfsReader');
-const TransactionData = require('./TransactionData');
-const Util = require('./Util');
-
 const modulesToExport = {
-    MessageInspector
-}
-
-if (typeof window === 'object') {
-    // Running on a browser: exports Buffer
-    modulesToExport.Buffer = Buffer;
+    MessageInspector: require('./MessageInspector')
 }
 
 if (process.env.RUNNING_MOCHA || (typeof window === 'object' && window.RUNNING_MOCHA)) {
     // Running tests
     Object.assign(modulesToExport, {
-        BlockchainTxReader,
-        IpfsReader,
-        TransactionData,
-        Util,
-        CID: require('cids')
+        BlockchainTxReader: require('./BlockchainTxReader'),
+        IpfsReader: require('./IpfsReader'),
+        TransactionData: require('./TransactionData'),
+        Util: require('./Util'),
+        CID: require('cids'),
+        bitcoinLib: require('bitcoinjs-lib')
     });
+
+    if (typeof window === 'object') {
+        // Testing on a browser: exports Buffer
+        modulesToExport.Buffer = Buffer;
+    }
 }
 
 module.exports = modulesToExport;

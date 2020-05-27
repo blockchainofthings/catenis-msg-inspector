@@ -32,6 +32,10 @@ function urlToOptions(url) {
 }
 
 function validateCid(cid) {
+    if (CID.isCID(cid)) {
+        return cid;
+    }
+
     let validCid;
 
     try {

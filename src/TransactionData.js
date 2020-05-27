@@ -46,7 +46,7 @@ class TransactionData {
             throw TypeError('Data is not a buffer');
         }
 
-        this.data = data;
+        this.buffer = data;
     }
 
     /**
@@ -54,19 +54,19 @@ class TransactionData {
      */
     parse() {
         // Check minimum data length (prefix + ver/func byte + ops byte + 1 byte payload)
-        if (this.data.length < prefix.length + 2 + 1) {
+        if (this.buffer.length < prefix.length + 2 + 1) {
             throw new Error('Data too short');
         }
 
         // Validate prefix
-        if (this.data.toString('utf8', 0, prefix.length) !== prefix) {
+        if (this.buffer.toString('utf8', 0, prefix.length) !== prefix) {
             throw new Error('Invalid prefix');
         }
 
         let offset = prefix.length;
         
         // Validate version and function byte
-        const verFunc = this.data.readUInt8(offset++);
+        const verFunc = this.buffer.readUInt8(offset++);
 
         this.version = verFunc & versionMask;
 
@@ -81,7 +81,7 @@ class TransactionData {
         }
 
         // Validate options
-        const opts = this.data.readUInt8(offset++);
+        const opts = this.buffer.readUInt8(offset++);
 
         if ((opts | validOptsMask) !== validOptsMask) {
             throw new Error('Invalid options');
@@ -94,7 +94,7 @@ class TransactionData {
 
             if (!this.options.embedding) {
                 // Validate storage provider
-                const spCode = this.data.readUInt8(offset++);
+                const spCode = this.buffer.readUInt8(offset++);
 
                 this.storageProvider = Object.values(storageProvider).find(sp => sp.byteCode === spCode);
 
@@ -102,19 +102,19 @@ class TransactionData {
                     throw new Error('Invalid storage provider code');
                 }
 
-                this.messageRef = this.storageProvider.validator(this.data.slice(offset));
+                this.messageRef = this.storageProvider.validator(this.buffer.slice(offset));
 
                 if (!this.messageRef) {
                     throw new Error('Invalid message reference');
                 }
             }
             else {
-                this.message = this.data.slice(offset);
+                this.message = this.buffer.slice(offset);
             }
         }
         else {
             // Validate storage provider
-            const spCode = this.data.readUInt8(offset++);
+            const spCode = this.buffer.readUInt8(offset++);
 
             if (spCode !== offChainStorageProvider.byteCode) {
                 throw new Error('Invalid storage provider code');
@@ -122,7 +122,7 @@ class TransactionData {
 
             this.storageProvider = offChainStorageProvider;
 
-            this.batchDocCid = this.storageProvider.validator(this.data.slice(offset));
+            this.batchDocCid = this.storageProvider.validator(this.buffer.slice(offset));
 
             if (!this.batchDocCid) {
                 throw new Error('Invalid off-chain batch document reference');

@@ -2,7 +2,8 @@
   "name": "catenis-msg-inspector",
   "version": "1.0.0",
   "description": "Module used to parse Catenis message blockchain transactions",
-  "main": "dist/catenis-msg-inspector.js",
+  "main": "src/index.js",
+  "unpck": "umd/catenis-msg-inspector.js",
   "scripts": {
     "build": "webpack",
     "build-prod": "webpack --mode=production",
@@ -10,14 +11,18 @@
     "build-node": "npm run build -- --config webpack.config.node.js",
     "build-web-prod": "npm run build-prod",
     "build-node-prod": "npm run build-prod -- --config webpack.config.node.js",
-    "install": "npm run build-node-prod",
-    "prepublishOnly": "npm run test-node-prod && npm run build-web-prod",
-    "test-node-prod": "npm run build-node-prod && env RUNNING_MOCHA=\"yes\" mocha",
+    "prepublishOnly": "npm run test-node-umd-prod && npm run build-web-prod",
     "test-node": "env RUNNING_MOCHA=\"yes\" mocha",
+    "test-node-umd": "npm run build-node && env RUNNING_MOCHA=\"yes\" mocha \"./test/umd/*.js\"",
+    "test-node-umd-prod": "npm run build-node-prod && env RUNNING_MOCHA=\"yes\" mocha \"./test/umd/*.js\"",
     "coverage-node": "nyc npm run test-node",
     "coverage-node-html-report": "npm run coverage-node && nyc report -r html",
     "prep-test-browser": "npm run build-web-prod"
   },
+  "files": [
+    "/src/",
+    "/umd/"
+  ],
   "keywords": [
     "Catenis",
     "message",
@@ -31,7 +36,7 @@
   },
   "dependencies": {
     "bitcoinjs-lib": "^5.1.7",
-    "catenis-off-chain-lib": "git+https://bitbucket.org/blockchainofthings/catenis-off-chain-lib.git#semver:^1.0.0",
+    "catenis-off-chain-lib": "git+https://bitbucket.org/blockchainofthings/catenis-off-chain-lib.git#semver:^1.1.0",
     "cids": "^0.8.0"
   },
   "devDependencies": {

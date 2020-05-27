@@ -3,6 +3,7 @@
  */
 
 const bitcoinLib = require('bitcoinjs-lib');
+const CID = require('cids');
 const ctnOffChainLib = require('catenis-off-chain-lib');
 const BlockchainTxReader = require('./BlockchainTxReader');
 const TransactionData = require('./TransactionData');
@@ -225,8 +226,12 @@ class MessageInspector {
      * @param {Function} [callback] Callback function
      * @returns {Promise<Object>,undefined} If no callback is passed, a promise is returned
      */
-    inspect(txid, offChainCid, callback) {
-        if (typeof offChainCid === 'function') {
+    inspectMessage(txid, offChainCid, callback) {
+        if (typeof txid === 'function') {
+            callback = txid;
+            txid = offChainCid = undefined;
+        }
+        else if (typeof offChainCid === 'function') {
             callback = offChainCid;
             offChainCid = undefined;
         }
@@ -251,20 +256,21 @@ class MessageInspector {
         if (!txid && !offChainCid) {
             process.nextTick(() => callback(new TypeError('Missing at least one of the parameters: \'txid\' or \'offChainCid\'')));
         }
+        else {
+            this._reset();
 
-        this._reset();
+            if (txid) {
+                this.txid = txid;
+            }
 
-        if (txid) {
-            this.txid = txid;
+            if (offChainCid) {
+                this.offChainCid = Util.validateCid(offChainCid);
+            }
+
+            this._doInspect()
+            .then(() => callback(null, this))
+            .catch(err => callback(err));
         }
-
-        if (offChainCid) {
-            this.offChainCid = offChainCid;
-        }
-
-        this._doInspect()
-        .then(() => callback(null, this))
-        .catch(err => callback(err));
 
         return result;
     }
@@ -451,11 +457,17 @@ class MessageInspector {
                     this.message = this.txData.message;
                 }
                 else {
+                    this.storageProvider = {
+                        name: this.txData.storageProvider.name,
+                        description: this.txData.storageProvider.description,
+                        version: this.txData.storageProvider.version
+                    };
                     this.messageRef = this.txData.messageRef;
                 }
             }
             else {
                 // Settle off-chain messages transaction
+                this.batchDocCid = this.txData.batchDocCid;
                 retrieveOffChainMsgData = true;
             }
         }
@@ -486,12 +498,7 @@ class MessageInspector {
             throw new Error('Error retrieving blockchain transaction: ' + err.message);
         }
 
-        try {
-            this.btcTransact = bitcoinLib.Transaction.fromHex(this.hexTx);
-        }
-        catch (err) {
-            throw new Error('Invalid hex transaction');
-        }
+        this.btcTransact = bitcoinLib.Transaction.fromHex(this.hexTx);
     }
 
     /**
@@ -501,12 +508,12 @@ class MessageInspector {
      * @private
      */
     async _retrieveOffChainMsgData() {
-        if (this.txData) {
+        if (this.batchDocCid) {
             // Retrieve Catenis off-chain messages batch document
             let batchDocData;
 
             try {
-                batchDocData = await this._ipfsReader.getData(this.txData.batchDocCid);
+                batchDocData = await this._ipfsReader.getData(this.batchDocCid);
             }
             catch (err) {
                 throw new Error('Error retrieving Catenis off-chain messages batch document: ' + err.message);
@@ -521,15 +528,7 @@ class MessageInspector {
             }
         }
 
-        if (this.offChainCid) {
-            if (this.batchDoc) {
-                // Make sure that supplied Catenis off-chain message envelope is recorded
-                //  in that batch document
-                if (!this.batchDoc.isMessageDataInBatch(this.offChainCid)) {
-                    throw new Error('Invalid Catenis off-chain message envelope IPFS CID');
-                }
-            }
-
+        if ('offChainCid' in this) {
             // Retrieve off-chain message envelope
             let offChainMsgEnvData;
 
@@ -546,6 +545,14 @@ class MessageInspector {
             }
             catch (err) {
                 throw new Error('Error parsing Catenis off-chain message envelope: ' + err.message);
+            }
+
+            if (this.batchDoc) {
+                // Make sure that supplied Catenis off-chain message envelope is recorded
+                //  in that batch document
+                if (!this.batchDoc.isMessageDataInBatch(this.offChainCid)) {
+                    throw new Error('Inconsistent Catenis off-chain message envelope IPFS CID');
+                }
             }
 
             // Get message info
@@ -565,7 +572,12 @@ class MessageInspector {
                 this.msgOptions.readConfirmation = this.offChainMsgEnvelope.isMessageWithReadConfirmation;
             }
 
-            this.messageRef = this.offChainMsgEnvelope.msgRef;
+            this.storageProvider = {
+                name: this.offChainMsgEnvelope.stoProvider.name,
+                description: this.offChainMsgEnvelope.stoProvider.description,
+                version: this.offChainMsgEnvelope.stoProvider.version
+            };
+            this.messageRef = new CID(this.offChainMsgEnvelope.msgRef);
         }
     }
 
@@ -575,6 +587,11 @@ class MessageInspector {
      * @private
      */
     async _retrieveExternalMessage() {
+        // Make sure that external message is stored on IPFS
+        if (this.storageProvider.name !== 'ipfs') {
+            throw new Error(`Unknown external message storage provider: [${this.storageProvider.name}] - ${this.storageProvider.description}`);
+        }
+
         // Retrieve external message
         try {
             this.message = await this._ipfsReader.getData(this.messageRef);

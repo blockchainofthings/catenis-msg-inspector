@@ -50,9 +50,16 @@
                     const ipfsReader = new ctnMsgInspector.IpfsReader();
 
                     ipfsReader.getData('bla', function (err, res) {
-                        expect(err).to.exist.and.be.an.instanceof(TypeError).and.have.property('message', 'Invalid data IPFS CID');
+                        let error;
 
-                        done();
+                        try {
+                            expect(err).to.exist.and.be.an.instanceof(TypeError).and.have.property('message', 'Invalid data IPFS CID');
+                        }
+                        catch(err) {
+                            error = err;
+                        }
+
+                        done(error);
                     });
                 });
 
@@ -60,9 +67,16 @@
                     const ipfsReader = new ctnMsgInspector.IpfsReader({timeout: 200});
 
                     ipfsReader.getData(nonExistentCID, function (err, res) {
-                        expect(err).to.exist.and.be.an.instanceof(Error).and.have.property('message', 'Request timed out');
+                        let error;
 
-                        done();
+                        try {
+                            expect(err).to.exist.and.be.an.instanceof(Error).and.have.property('message', 'Request timed out');
+                        }
+                        catch(err) {
+                            error = err;
+                        }
+
+                        done(error);
                     });
                 });
 
@@ -72,9 +86,16 @@
                         const ipfsReader = new ctnMsgInspector.IpfsReader({timeout: 200, mode: 'disable-fetch'});
 
                         ipfsReader.getData(nonExistentCID, function (err, res) {
-                            expect(err).to.exist.and.be.an.instanceof(Error).and.have.property('message', 'Request timed out');
+                            let error;
 
-                            done();
+                            try {
+                                expect(err).to.exist.and.be.an.instanceof(Error).and.have.property('message', 'Request timed out');
+                            }
+                            catch(err) {
+                                error = err;
+                            }
+
+                            done(error);
                         });
                     });
                 }
@@ -83,9 +104,16 @@
                     const ipfsReader = new ctnMsgInspector.IpfsReader();
 
                     ipfsReader.getData(gatewayCheckerCID, function (err, res) {
-                        expect(res).to.exist.and.be.an.instanceof(oBuffer);
+                        let error;
 
-                        done();
+                        try {
+                            expect(res).to.exist.and.be.an.instanceof(oBuffer);
+                        }
+                        catch(err) {
+                            error = err;
+                        }
+
+                        done(error);
                     });
                 });
 

@@ -11,9 +11,9 @@ module.exports = {
         main: './src/index.js'
     },
     output: {
-        path: path.resolve(__dirname, 'dist'),
+        path: path.resolve(__dirname, 'umd'),
         filename: 'catenis-msg-inspector.js',
-        library: 'CatenisMsgInspector',
+        library: 'ctnMsgInspector',
         libraryTarget: 'umd'
     }
 };
