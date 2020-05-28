@@ -1,6 +1,6 @@
 {
   "name": "catenis-msg-inspector",
-  "version": "1.0.0",
+  "version": "1.0.0-rc.1",
   "description": "Module used to parse Catenis message blockchain transactions",
   "main": "src/index.js",
   "unpck": "umd/catenis-msg-inspector.js",
@@ -45,5 +45,6 @@
     "nyc": "^14.1.1",
     "webpack": "^4.43.0",
     "webpack-cli": "^3.3.11"
-  }
+  },
+  "repository": "git@github.com:blockchainofthings/catenis-msg-inspector.git"
 }
