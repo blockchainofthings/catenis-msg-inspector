@@ -3,7 +3,7 @@
   "version": "1.0.0-rc.1",
   "description": "Module used to parse Catenis message blockchain transactions",
   "main": "src/index.js",
-  "unpck": "umd/catenis-msg-inspector.js",
+  "unpkg": "umd/catenis-msg-inspector.js",
   "scripts": {
     "build": "webpack",
     "build-prod": "webpack --mode=production",
