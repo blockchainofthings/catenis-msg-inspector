@@ -16,6 +16,20 @@ On the browser:
 <script src="https://unpkg.com/catenis-msg-inspector"></script>
 ```
 
+### Browser compatibility
+
+The Catenis Message Inspector library is compatible with modern web browsers.
+
+It has been tested on the following web browsers:
+
+- Safari ver. 13.1 (on macOS Catalina 10.15)
+- Google Chrome ver. 83.0 64 bits (on macOS Catalina 10.15, Windows 10)
+- Google Chrome ver. 83.0 32 bits (on Windows 8.1)
+- Firefox ver. 76.0 64-bits (on macOS Catalina 10.15)
+- Microsoft Edge ver. 44 (on Windows 10)
+
+> **Note**: Internet Explorer is **not** supported.
+
 ## Usage
 
 ### Instantiate the message inspector object
