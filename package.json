@@ -1,6 +1,6 @@
 {
   "name": "catenis-msg-inspector",
-  "version": "1.0.0-rc.2",
+  "version": "1.0.0",
   "description": "Module used to parse Catenis message blockchain transactions",
   "main": "src/index.js",
   "unpkg": "umd/catenis-msg-inspector.js",
