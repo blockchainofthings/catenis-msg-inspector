@@ -43,6 +43,8 @@
             });
 
             describe('Retrieve data from IPFS', function () {
+                this.timeout(5000);
+
                 const gatewayCheckerCID = 'Qmaisz6NMhDB51cCvNWa1GMS7LU1pAxdF4Ld6Ft9kZEP2a';
                 const nonExistentCID = gatewayCheckerCID.replace(/.$/, 'b');
 
