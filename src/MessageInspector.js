@@ -454,6 +454,10 @@ class MessageInspector {
                 }
 
                 if (this.msgOptions.embedding) {
+                    if (this.msgOptions.padding) {
+                        this.msgPadding = this.txData.padding;
+                    }
+
                     this.message = this.txData.message;
                 }
                 else {

@@ -462,6 +462,7 @@
                                 msgOptions: {
                                     embedding: true,
                                     encryption: true,
+                                    padding: false,
                                     readConfirmation: false
                                 },
                                 originDevice: {
@@ -475,7 +476,7 @@
                                 message: oBuffer.from('bb2f47e140b731e970a16dfd8f9cae285c0067a256cd0693f07e3e44a9d28f6bbc822fa247fc541ee676d391de8b50875322e2bbf0aa0ef12a9fbc5e9c164680', 'hex')
                             })
                             .and.to.have.all.keys('btcTransact')
-                            .and.to.not.have.any.keys('batchDocCid', 'offChainCid', 'batchDoc', 'offChainMsgEnvelope', 'storageProvider', 'messageRef');
+                            .and.to.not.have.any.keys('batchDocCid', 'offChainCid', 'batchDoc', 'offChainMsgEnvelope', 'msgPadding', 'storageProvider', 'messageRef');
                             expect(res).to.have.property('txData').that.is.an('object').that.has.deep.property('buffer', oBuffer.from('43544e0103bb2f47e140b731e970a16dfd8f9cae285c0067a256cd0693f07e3e44a9d28f6bbc822fa247fc541ee676d391de8b50875322e2bbf0aa0ef12a9fbc5e9c164680', 'hex'));
                         }
                         catch (err) {
@@ -499,6 +500,7 @@
                                 msgOptions: {
                                     embedding: true,
                                     encryption: true,
+                                    padding: false,
                                     readConfirmation: true
                                 },
                                 originDevice: {
@@ -512,7 +514,7 @@
                                 message: oBuffer.from('6922f0d217cce56b202001093c0859f1725d498db77dbaabd62f545eafbc1d6c6392c17269781ce4aa68a8a0018052b7a68097a7b3e5e084dffade953a114542', 'hex')
                             })
                             .and.to.have.all.keys('btcTransact')
-                            .and.to.not.have.any.keys('batchDocCid', 'offChainCid', 'batchDoc', 'offChainMsgEnvelope', 'storageProvider', 'messageRef');
+                            .and.to.not.have.any.keys('batchDocCid', 'offChainCid', 'batchDoc', 'offChainMsgEnvelope', 'msgPadding', 'storageProvider', 'messageRef');
                             expect(res).to.have.property('txData').that.is.an('object').that.has.deep.property('buffer', oBuffer.from('43544e01036922f0d217cce56b202001093c0859f1725d498db77dbaabd62f545eafbc1d6c6392c17269781ce4aa68a8a0018052b7a68097a7b3e5e084dffade953a114542', 'hex'));
                         }
                         catch (err) {
@@ -535,7 +537,8 @@
                                 msgType: msgType.logStandardMessage,
                                 msgOptions: {
                                     embedding: true,
-                                    encryption: false
+                                    encryption: false,
+                                    padding: false
                                 },
                                 originDevice: {
                                     address: 'tb1q2rrfmlp7mxlnrzjyzvgzynv7rljddjuw7lm5zu',
@@ -544,8 +547,42 @@
                                 message: oBuffer.from('Message #10: standard, log, plain, embedded')
                             })
                             .and.to.have.all.keys('btcTransact')
-                            .and.to.not.have.any.keys('batchDocCid', 'offChainCid', 'batchDoc', 'offChainMsgEnvelope', 'targetDevice', 'storageProvider', 'messageRef');
+                            .and.to.not.have.any.keys('batchDocCid', 'offChainCid', 'batchDoc', 'offChainMsgEnvelope', 'targetDevice', 'msgPadding', 'storageProvider', 'messageRef');
                             expect(res).to.have.property('txData').that.is.an('object').that.has.deep.property('buffer', oBuffer.from('43544e02014d657373616765202331303a207374616e646172642c206c6f672c20706c61696e2c20656d626564646564', 'hex'));
+                        }
+                        catch (err) {
+                            error = err;
+                        }
+
+                        done(error);
+                    });
+                });
+
+                it('should successfully inspect message (standard, log, plain, embedded, with padding)', function (done) {
+                    msgInspector.inspectMessage('f44a5fc4993bcf63f2435736ecbc459faf3b471d13becf567962c1016bfef5d8', function (err, res) {
+                        let error;
+
+                        try {
+                            expect(res).to.exist.and.be.a('object').that.equal(msgInspector).and.deep.include({
+                                txid: 'f44a5fc4993bcf63f2435736ecbc459faf3b471d13becf567962c1016bfef5d8',
+                                hexTx: '02000000000101259b7c5d57bfd457167954c297fb877dc548abe186855a693a7e384c32e061736400000000ffffffff010000000000000000166a1443544e02050a00000000000000000048656c6c6f0247304402203db08232a3041a9c18a091cfeaf95e5263e28d45b7dd311611c014ed957c75b90220071d29951b37dfb317aa9171be62ff95a427bab2311eaac957a475c32dab1b54012102fb0bff89d409fed74b22ea9b3b3ac09007cb1cf1bac2995c698fc598564dbdc900000000',
+                                txType: msgTxType.logMessage,
+                                msgType: msgType.logStandardMessage,
+                                msgOptions: {
+                                    embedding: true,
+                                    encryption: false,
+                                    padding: true
+                                },
+                                originDevice: {
+                                    address: 'tb1qaxzvxzq6theae44m7fyuhqctvnqjrcf92f3nuz',
+                                    pubKeyHash: oBuffer.from('e984c3081a5df3dcd6bbf249cb830b64c121e125', 'hex')
+                                },
+                                msgPadding: oBuffer.from('0a000000000000000000', 'hex'),
+                                message: oBuffer.from('Hello')
+                            })
+                            .and.to.have.all.keys('btcTransact')
+                            .and.to.not.have.any.keys('batchDocCid', 'offChainCid', 'batchDoc', 'offChainMsgEnvelope', 'targetDevice', 'storageProvider', 'messageRef');
+                            expect(res).to.have.property('txData').that.is.an('object').that.has.deep.property('buffer', oBuffer.from('43544e02050a00000000000000000048656c6c6f', 'hex'));
                         }
                         catch (err) {
                             error = err;
@@ -578,7 +615,7 @@
                                 message: oBuffer.from('Message #12: standard, log, plain, external')
                             })
                             .and.to.have.all.keys('btcTransact')
-                            .and.to.not.have.any.keys('batchDocCid', 'offChainCid', 'batchDoc', 'offChainMsgEnvelope', 'targetDevice');
+                            .and.to.not.have.any.keys('batchDocCid', 'offChainCid', 'batchDoc', 'offChainMsgEnvelope', 'targetDevice', 'msgPadding');
                             expect(res).to.have.property('txData').that.is.an('object').that.has.deep.property('buffer', oBuffer.from('43544e020002122047fb19eef4b2124294bc1d05b06e84acf3f166694aadbaa629c6e5e2d372d7c1', 'hex'));
                         }
                         catch (err) {
@@ -612,7 +649,7 @@
                                 message: oBuffer.from('79378c4dcecd08b04910a0e24034ab15ea0068ab53b1db48c025860f27d73cad80e411c7638d4e6b82d6ff3427120b2b', 'hex')
                             })
                             .and.to.have.all.keys('offChainMsgEnvelope')
-                            .and.to.not.have.any.keys('txid', 'hexTx', 'btcTransact', 'txType', 'txData', 'batchDocCid', 'batchDoc');
+                            .and.to.not.have.any.keys('txid', 'hexTx', 'btcTransact', 'txType', 'txData', 'batchDocCid', 'batchDoc', 'msgPadding');
                         }
                         catch (err) {
                             error = err;
@@ -719,7 +756,7 @@
                                 message: oBuffer.from('Message #18: off-chain, log, plain')
                             })
                             .and.to.have.all.keys('btcTransact', 'batchDoc', 'offChainMsgEnvelope')
-                            .and.to.not.have.any.keys('targetDevice');
+                            .and.to.not.have.any.keys('targetDevice', 'msgPadding');
                             expect(res).to.have.property('txData').that.is.an('object').that.has.deep.property('buffer', oBuffer.from('43544e03000212208443510bc12b433245b9c1ebff82ea7463440b0f206867f7c478fb526fba3aa3', 'hex'));
                         }
                         catch (err) {
@@ -743,6 +780,7 @@
                             msgOptions: {
                                 embedding: true,
                                 encryption: false,
+                                padding: false,
                                 readConfirmation: false
                             },
                             originDevice: {
@@ -756,7 +794,7 @@
                             message: oBuffer.from('Message #3: standard, send, no-conf, plain, embedded')
                         })
                         .and.to.have.all.keys('btcTransact')
-                        .and.to.not.have.any.keys('storageProvider', 'messageRef');
+                        .and.to.not.have.any.keys('msgPadding', 'storageProvider', 'messageRef');
                         expect(res).to.have.property('txData').that.is.an('object').that.has.deep.property('buffer', oBuffer.from('43544e01014d6573736167652023333a207374616e646172642c2073656e642c206e6f2d636f6e662c20706c61696e2c20656d626564646564', 'hex'));
                     }, function (err) {
                         error = new Error('Promise should not have been rejected');

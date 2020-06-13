@@ -109,6 +109,7 @@ The following properties should be added to the message inspector object once th
   - *embedding* \[Boolean\] Indicates whether the message contents is embedded in the blockchain transaction or not
    (recorded in an external storage provider).
   - *encryption* \[Boolean\] Indicates whether the message contents is encrypted or not.
+  - *padding* \[Boolean\] Indicates whether the embedded message contents is padded or not.
   - *readConfirmation* \[Boolean\] Indicates whether the message was sent with read confirmation.
 - **originDevice** \[Object\] - Object identifying the Catenis virtual device that had issued the message. Object
  properties:
@@ -122,6 +123,7 @@ The following properties should be added to the message inspector object once th
    property is not available for off-chain messages.
   - *pubKeyHash* \[Buffer\] Buffer containing the cryptographic hash (`RIPEMD-160(SHA-256(public key))`) of the public
    key of a cryptographic key pair that belongs to the Catenis virtual device.
+- **msgPadding** \[Buffer\] - Buffer containing the bytes used for padding the embedded message contents.
 - **message** \[Buffer\] - Buffer containing the message contents.
 - **storageProvider** \[Object\] - Object identifying the external storage provider that was used to record the message.
  Relevant properties:

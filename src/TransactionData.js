@@ -15,7 +15,8 @@ const funcByte = {
 };
 const optsMask = {
     embedding: 0x01,
-    encryption: 0x02
+    encryption: 0x02,
+    padding: 0x04
 };
 const validOptsMask = Object.values(optsMask).reduce((m, b) => m | b, 0x00);
 const storageProvider = {
@@ -93,6 +94,14 @@ class TransactionData {
             Object.keys(optsMask).forEach(opt => this.options[opt] = !!(optsMask[opt] & opts));
 
             if (!this.options.embedding) {
+                // External storage provider. Make sure that padding is not set
+                if (this.options.padding) {
+                    throw new Error('Inconsistent padding option');
+                }
+
+                // Exclude padding option
+                delete this.options.padding;
+
                 // Validate storage provider
                 const spCode = this.buffer.readUInt8(offset++);
 
@@ -109,6 +118,19 @@ class TransactionData {
                 }
             }
             else {
+                // Embedded message. Check if data is padded
+                if (this.options.padding) {
+                    // Message is padded. Get number of padding bytes and validate it
+                    const paddingBytes = this.buffer.readUInt8(offset);
+
+                    if (paddingBytes === 0 || paddingBytes > this.buffer.length - offset) {
+                        throw new Error('Invalid number of padding bytes');
+                    }
+
+                    this.padding = this.buffer.slice(offset, offset + paddingBytes);
+                    offset += paddingBytes;
+                }
+
                 this.message = this.buffer.slice(offset);
             }
         }

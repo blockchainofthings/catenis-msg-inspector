@@ -67,7 +67,34 @@
                     }).to.throw(Error, 'Invalid options');
                 });
 
-                it('should throw if data is for a send standard, embedded message tx with an invalid storage provider code', function () {
+                it('should throw if data is for a log standard, embedded message tx with invalid padding (0 count)', function () {
+                    const data = oBuffer.from('43544e020500ff', 'hex');
+                    const txData = new ctnMsgInspector.TransactionData(data);
+
+                    expect(() => {
+                        txData.parse();
+                    }).to.throw(Error, 'Invalid number of padding bytes');
+                });
+
+                it('should throw if data is for a log standard, embedded message tx with invalid padding (too long)', function () {
+                    const data = oBuffer.from('43544e020503ff', 'hex');
+                    const txData = new ctnMsgInspector.TransactionData(data);
+
+                    expect(() => {
+                        txData.parse();
+                    }).to.throw(Error, 'Invalid number of padding bytes');
+                });
+
+                it('should throw if data is for a send standard, external message tx with inconsistent padding option', function () {
+                    const data = oBuffer.from('43544e010402', 'hex');
+                    const txData = new ctnMsgInspector.TransactionData(data);
+
+                    expect(() => {
+                        txData.parse();
+                    }).to.throw(Error, 'Inconsistent padding option');
+                });
+
+                it('should throw if data is for a send standard, external message tx with an invalid storage provider code', function () {
                     const data = oBuffer.from('43544e0100ff', 'hex');
                     const txData = new ctnMsgInspector.TransactionData(data);
 
@@ -76,7 +103,7 @@
                     }).to.throw(Error, 'Invalid storage provider code');
                 });
 
-                it('should throw if data is for a send standard, embedded message tx with an invalid message reference', function () {
+                it('should throw if data is for a send standard, external message tx with an invalid message reference', function () {
                     const data = oBuffer.from('43544e01000200', 'hex');
                     const txData = new ctnMsgInspector.TransactionData(data);
 
@@ -115,7 +142,8 @@
                         funcByte: 0x01,
                         options: {
                             embedding: true,
-                            encryption: true
+                            encryption: true,
+                            padding: false
                         }
                     });
                     expect(txData.message).to.exist.and.be.an.instanceof(oBuffer);
@@ -133,7 +161,8 @@
                         funcByte: 0x01,
                         options: {
                             embedding: true,
-                            encryption: false
+                            encryption: false,
+                            padding: false
                         },
                         message: oBuffer.from('Message #3: standard, send, no-conf, plain, embedded')
                     });
@@ -201,7 +230,8 @@
                         funcByte: 0x02,
                         options: {
                             embedding: true,
-                            encryption: true
+                            encryption: true,
+                            padding: false
                         }
                     });
                     expect(txData.message).to.exist.and.be.an.instanceof(oBuffer);
@@ -219,9 +249,30 @@
                         funcByte: 0x02,
                         options: {
                             embedding: true,
-                            encryption: false
+                            encryption: false,
+                            padding: false
                         },
                         message: oBuffer.from('Message #10: standard, log, plain, embedded')
+                    });
+                });
+
+                it('should successfully parse data for log standard, embedded, plain message tx with padding', function () {
+                    const data = oBuffer.from('43544e02050a00000000000000000048656c6c6f', 'hex');
+                    const txData = new ctnMsgInspector.TransactionData(data);
+
+                    expect(() => {
+                        txData.parse();
+                    }).not.to.throw();
+                    expect(txData).to.be.an('object').that.deep.includes({
+                        version: 0x00,
+                        funcByte: 0x02,
+                        options: {
+                            embedding: true,
+                            encryption: false,
+                            padding: true
+                        },
+                        padding: oBuffer.from('0a000000000000000000', 'hex'),
+                        message: oBuffer.from('Hello')
                     });
                 });
 
