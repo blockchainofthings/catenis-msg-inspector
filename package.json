@@ -36,7 +36,7 @@
   },
   "dependencies": {
     "bitcoinjs-lib": "^5.1.7",
-    "catenis-off-chain-lib": "git+https://bitbucket.org/blockchainofthings/catenis-off-chain-lib.git#semver:^1.2.0",
+    "catenis-off-chain-lib": "https://github.com/blockchainofthings/catenis-off-chain-lib.git#semver:^1.2.5",
     "cids": "^0.8.0"
   },
   "devDependencies": {
