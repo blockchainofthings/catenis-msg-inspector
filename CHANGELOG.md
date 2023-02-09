@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.1.1] - 2023-02-09
+
+### Changes
+- Update catenis-off-chain-lib dependency module.
+
 ## [1.1.0] - 2020-06-13
 
 ### New features
