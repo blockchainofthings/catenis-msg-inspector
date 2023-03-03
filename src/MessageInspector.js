@@ -12,7 +12,8 @@ const Util = require('./Util');
 
 const networks = [
     'main',
-    'testnet'
+    'testnet',
+    'signet'
 ];
 const defaultNetwork = networks[0];
 const inputType = {
@@ -100,7 +101,7 @@ class MessageInspector {
      * Class constructor
      * @param {Object} [options]
      * @param {String} [options.network] Bitcoin blockchain network to where Catenis message transactions
-     *                  are recorded. Valid values: 'main' (the default) and 'testnet'
+     *                  are recorded. Valid values: 'main' (the default), 'testnet' and 'signet'
      * @param {Object} [options.reqOptions] Object with common options to be passed to (Node.js')
      *                  http.request() function
      * @param {Object} [options.blockExplorer]

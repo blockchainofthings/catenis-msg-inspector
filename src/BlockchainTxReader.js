@@ -6,12 +6,31 @@ const http = require('http');
 const https = require('https');
 const Util = require('./Util');
 
-const defaultNetwork = 'main';
-const defaultExplorerApiRootUrl = {
-    main: 'https://blockstream.info/api/',
-    testnet: 'https://blockstream.info/testnet/api/'
+/**
+ * @typedef {Object} ExplorerApiInfo
+ * @property {string} rootUrl Root URL of blockchain explorer API to use
+ * @property {string} getRawTxHexEndpoint Endpoint of API service used for getting hex-encoded raw transactions. It is
+ *                                         expected that the endpoint has the inline parameter ':txid'
+ */
+
+/**
+ * @type {Object<string, ExplorerApiInfo>}
+ */
+const defaultExplorerApi = {
+    main: {
+        rootUrl: 'https://blockstream.info/api/',
+        getRawTxHexEndpoint: 'tx/:txid/hex'
+    },
+    testnet: {
+        rootUrl: 'https://blockstream.info/testnet/api/',
+        getRawTxHexEndpoint: 'tx/:txid/hex'
+    },
+    signet: {
+        rootUrl: 'https://ex.signet.bublina.eu.org/api/',
+        getRawTxHexEndpoint: 'tx/:txid'
+    }
 };
-const defaultGetRawTxHexEndpoint = 'tx/:txid/hex';
+const defaultNetwork = 'main';
 const validProtocols = [
     'http:',
     'https:'
@@ -21,12 +40,9 @@ const validProtocols = [
 class BlockchainTxReader {
     /**
      * Class constructor
-     * @param {Object|String} [explorerApi] If a string is passed instead of an object, it is consider
-     *                         a network designation and the default explorer API for that given network
-     *                         is used. Valid values: 'main' (the default) and 'testnet'
-     * @param {String} explorerApi.rootUrl Root URL of blockchain explorer API to use
-     * @param {String} explorerApi.getRawTxHexEndpoint Endpoint of API service used for getting hex-encoded raw transactions.
-     *                  It is expected that the endpoint has the inline parameter ':txid'
+     * @param {ExplorerApiInfo|String} [explorerApi] If a string is passed instead of an object, it is considered
+     *                                  a network designation and the default explorer API for that given network
+ *                                      is used. Valid values: 'main' (the default), 'testnet' and 'signet'
      * @param {Object} [reqOptions] Options object to be used with (Node.js') http.request() function
      */
     constructor(explorerApi, reqOptions) {
@@ -34,8 +50,9 @@ class BlockchainTxReader {
 
         if (explorerApi === undefined || typeof explorerApi === 'string') {
             const network = explorerApi && isValidNetwork(explorerApi) ? explorerApi : defaultNetwork;
+            const explorerApiInfo = defaultExplorerApi[network];
 
-            this.explorerApiUrl = new URL(defaultGetRawTxHexEndpoint, defaultExplorerApiRootUrl[network]);
+            this.explorerApiUrl = new URL(explorerApiInfo.getRawTxHexEndpoint, explorerApiInfo.rootUrl);
         }
         else if (typeof explorerApi === 'object' && explorerApi !== null) {
             try {
@@ -115,8 +132,41 @@ class BlockchainTxReader {
                     callback(new Error(`[${res.statusCode}] ` + (dataRead.length > 0 ? dataRead.toString() : res.statusMessage)));
                 }
                 else {
-                    // Success
-                    callback(null, dataRead.toString());
+                    // Success. Parse received data according to content type of response
+                    const contentType = res.headers['content-type'];
+                    let hexTx;
+                    let errorMsg;
+
+                    if (/^application\/json/.test(contentType)) {
+                        let tx;
+
+                        try {
+                            tx = JSON.parse(dataRead.toString());
+                        }
+                        catch (err) {
+                            errorMsg = 'Failure parsing JSON: ' + err;
+                        }
+
+                        if (typeof tx === 'object' && tx !== null && 'hex' in tx) {
+                            hexTx = tx.hex;
+                        }
+                        else {
+                            errorMsg = 'Unexpected transaction data: ' + tx;
+                        }
+                    }
+                    else if (contentType === 'text/plain') {
+                        hexTx = dataRead.toString();
+                    }
+                    else {
+                        errorMsg = 'Unexpect content type: ' + contentType;
+                    }
+
+                    if (errorMsg) {
+                        callback(new Error('Error processing returned transaction data: ' + errorMsg));
+                    }
+                    else {
+                        callback(null, hexTx);
+                    }
                 }
             });
 
@@ -165,7 +215,7 @@ class BlockchainTxReader {
  * @returns {boolean}
  */
 function isValidNetwork(network) {
-    return Object.keys(defaultExplorerApiRootUrl).some(k => k === network);
+    return Object.keys(defaultExplorerApi).some(k => k === network);
 }
 
 module.exports = BlockchainTxReader;

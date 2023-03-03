@@ -8,7 +8,7 @@
 
         describe('IpfsReader module', function () {
             describe('Instantiate IpfsReader', function () {
-                const defaultIpfsGatewayUrl = 'https://ipfs.catenis.io/';
+                const defaultIpfsGatewayUrl = 'https://ipfs-sandbox.catenis.io/';
 
                 it('should throw if an invalid \'ipfsGatewayUrl\' parameter is passed', function () {
                     expect(() => {

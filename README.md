@@ -67,7 +67,7 @@ The following options can be used when instantiating the message inspector objec
 - **blockExplorer.reqOptions** \[Object\] - (optional) Object with options to be passed to (Node.js') `http.request()`
  function when accessing the blockchain explorer API.
 - **ipfsGateway** \[Object\] - (optional)
-- **ipfsGateway.url** \[String\] - (optional, default: <b>*'https://ipfs.catenis.io'*</b>) URL of IPFS gateway to use to
+- **ipfsGateway.url** \[String\] - (optional, default: <b>*'https://ipfs-sandbox.catenis.io'*</b>) URL of IPFS gateway to use to
  retrieve data from IPFS.
 - **ipfsGateway.reqOptions** \[Object\] - (optional) Object with options to be passed to (Node.js') `http.request()`
  function when retrieving data from IPFS.

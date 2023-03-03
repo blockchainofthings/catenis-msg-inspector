@@ -7,7 +7,7 @@ const https = require('https');
 const url = require('url');
 const Util = require('./Util');
 
-const defaultIpfsGatewayUrl = 'https://ipfs.catenis.io';
+const defaultIpfsGatewayUrl = 'https://ipfs-sandbox.catenis.io';
 const validProtocols = [
     'http:',
     'https:'
@@ -37,7 +37,7 @@ class IpfsReader {
         }
 
         if (error || validProtocols.findIndex(p => p === this.gatewayUrl.protocol) < 0) {
-            throw new TypeError('Invalid IPFS Gateway URL');
+            throw new TypeError('Invalid IPFS Gateway URL: ' + ipfsGatewayUrl);
         }
 
         this.reqOptions = Object.assign(Util.urlToOptions(this.gatewayUrl), reqOptions || {});
