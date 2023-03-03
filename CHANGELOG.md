@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.2.0] - 2023-03-03
+
+### Changes
+- Changes to support the (global default) Bitcoin signet network.
+
 ## [1.1.1] - 2023-02-09
 
 ### Changes
