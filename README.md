@@ -58,6 +58,7 @@ The following options can be used when instantiating the message inspector objec
  transactions are recorded. Valid values:
   - *'main'*
   - *'testnet'*
+  - *'signet'*
 - **reqOptions** \[Object\] - (optional) Object with common options to be passed to (Node.js') `http.request()` function.
 - **blockExplorer** \[Object\] - (optional)
 - **blockExplorer.api** \[Object\] - (optional, default: <b>*{rootUrl:'https://blockstream.info/api/', getRawTxHexEndpoint:'tx/:txid/hex'}*</b>)
